@@ -1,0 +1,25 @@
+{
+    "id": "2AFC99EC",
+    "path": "~/Dropbox/SDSU/_FALL2022/STAT580/lyric.analysis/lyric.analysis/R/sentimentProportion.R",
+    "project_path": "R/sentimentProportion.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1670402398730.0,
+    "source_on_save": false,
+    "relative_order": 7,
+    "properties": {
+        "tempName": "Untitled1",
+        "cursorPosition": "13,2",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1670404127,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1670404127482,
+    "read_only": false,
+    "read_only_alternatives": []
+}

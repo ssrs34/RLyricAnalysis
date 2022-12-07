@@ -1,0 +1,25 @@
+{
+    "id": "066FF0F3",
+    "path": "~/Dropbox/SDSU/_FALL2022/STAT580/lyric.analysis/lyric.analysis/R/get_wordcloud.R",
+    "project_path": "R/get_wordcloud.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1670402443591.0,
+    "source_on_save": false,
+    "relative_order": 9,
+    "properties": {
+        "tempName": "Untitled1",
+        "cursorPosition": "14,4",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1670404147,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1670404147231,
+    "read_only": false,
+    "read_only_alternatives": []
+}

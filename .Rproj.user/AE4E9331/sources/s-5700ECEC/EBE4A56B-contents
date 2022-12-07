@@ -1,0 +1,13 @@
+Package: lyric.analysis
+Type: Package
+Title: Song Lyric Analysis and Visualization 
+Version: 0.1.0
+Author: Saron, Claire, Ishmael, Spencer
+Maintainer: Spencer Spiegel <sspiegel2240@sdsu.edu>
+Description: This package is called lyric.analysis. The package addresses three major challenges: lyric text data collection, lyric data formatting and cleaning, and lyric data exploration and visualization. For users who want to do text data analytics on song lyrics of a certain song or artist they can use our package to web scrape the lyrics from a website called www.songlyrics.com. This website has a very large amount of lyric data from a wide variety of artists and genres. So, lyrics from any artist or song that is available on www.songlyrics.com can be webscrapped using our package.
+License: GPL-2
+Encoding: UTF-8
+LazyData: true
+Imports: rvest, xml2, stringr, textclean, 
+        syuzhet,wordcloud, RColorBrewer, tm
+RoxygenNote: 7.2.2

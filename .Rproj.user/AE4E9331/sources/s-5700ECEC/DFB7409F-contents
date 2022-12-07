@@ -1,0 +1,277 @@
+install.packages("xml2" , repos = "http://cran.us.r-project.org")
+install.packages("rvest", repos = "http://cran.us.r-project.org")
+install.packages("textclean")
+install.packages("syuzhet")
+install.packages("wordcloud") #makes the wordcloud
+install.packages("RColorBrewer") #color selection, not totally necessary but nice
+install.packages("tm") #document term matrix
+library(rvest)
+library(xml2)
+library(stringr)
+library(textclean)
+library(syuzhet)
+library(wordcloud)
+library(RColorBrewer)
+library(tm)
+
+
+#' getSong
+#'
+#' Retrieves a specific song from a specific artist
+#'
+#' @param name Name of the desired song
+#' @param artist Name of the desired artist
+#'
+#' @return matrix/array of scraped lyrics
+#' @export
+#'
+#' @examples
+#' song <- getSong('Billie Eilish', 'Party Favor')
+#'
+#' @export
+getSong <- function(name, artist){
+  name <- tolower(gsub(" ","-", gsub("[().']","", gsub("'","-",name))))
+  artist <- gsub(" ", "-", artist)
+  url <- paste("https://www.songlyrics.com/",artist, "/", name, "-lyrics/", sep='')
+  track_url <-url
+  song <- track_url %>%
+    httr::GET(config = httr::config(ssl_verifypeer = TRUE)) %>%
+    read_html()
+  songName <- song %>% html_elements("title") %>% html_text2()
+  songlyrics <- song %>% html_elements('#songLyricsDiv') %>% html_text2()
+  lyrics <- cbind(songlyrics, songName)
+  lyrics
+}
+
+
+#' getArtist
+#'
+#' Retrieves all the songs from a specific artist
+#'
+#' @param artist Name of the desired artist
+#'
+#' @return matrix/array of scraped lyrics
+#' @export
+#'
+#' @examples
+#' billieLyrics <- getArtist("Billie Eilish")
+#'
+#' @export
+getArtist <- function(artist){
+  artist <- tolower(gsub(" ","-", gsub("[().]","", gsub("'","-",artist))))
+
+  url <- paste('https://www.songlyrics.com/',artist,'-lyrics/', sep='')
+  singer <- url %>%
+    httr::GET(config = httr::config(ssl_verifypeer = TRUE)) %>%
+    read_html()
+
+  track_links <<- singer %>%
+    html_nodes('table') %>% html_nodes('tr') %>% html_node('a') %>%
+    html_attr('href')
+
+  track_links <<- track_links[1:(length(track_links) - 2)]
+
+  lyricVector <- c()
+  songNameVector <- c()
+  for(num in 1:length(track_links)){
+
+    track_url <- track_links[num]
+    song <- track_url %>%
+      httr::GET(config = httr::config(ssl_verifypeer = TRUE)) %>%
+      read_html()
+    songName <- song %>% html_elements('title') %>% html_text2()
+    lyrics <- song %>% html_elements('#songLyricsDiv') %>% html_text2()
+    songNameVector[num] <- songName
+    lyricVector[num] <- lyrics
+  }
+  lyrics <- cbind(lyricVector, songNameVector)
+  lyrics
+}
+
+
+#' formatLyrics
+#'
+#' Formats the scraped lyrics into a data frame and removes new line characters
+#'
+#' @param lyrics matrix/array of the scraped lyrics from getSong() or getArtist()
+#'
+#' @return data frame of formatted lyrics
+#' @export
+#'
+#' @examples
+#' formatted_lyrics <- formatLyrics(billieLyrics)
+#'
+#' @export
+formatLyrics <- function(lyrics){
+  list_mat <- list()
+  for(num in 1:length(lyrics[,1])){
+    a <- strsplit(lyrics[num,1], split = '\n')
+    a <- unlist(a)
+
+    z <- rep(lyrics[num,2], length(a))
+
+    f <- cbind(a,z)
+
+    list_mat[[num]] <- f
+
+  }
+  list_mat <- do.call(rbind, list_mat)
+  list_mat <- data.frame(list_mat)
+
+  list_mat[c('artist','song title')] <- str_split_fixed(list_mat$z, ' - ', 2)
+  list_mat <- list_mat[c('a', 'artist', 'song title')]
+
+  row.names(list_mat) <- NULL
+
+  colnames(list_mat) <- c('lyrics', 'artist', 'song title')
+
+  list_mat[,'lyrics'] <- sub('\r', "", list_mat[,'lyrics'])
+  list_mat
+
+}
+
+
+#' cleanLyrics
+#'
+#' Expands contractions and removes punctuation from the scraped and formatted lyrics
+#'
+#' @param lyr data frame of formatted lyrics from formatLyrics()
+#' @param expContractions boolean value that indicates if the user wants to expand the contractions
+#'
+#' @return data frame of cleaned lyrics
+#' @export
+#'
+#' @examples
+#' cleaned_lyrics <- cleanLyrics(formatted_lyrics)
+#'
+#' @export
+cleanLyrics <- function(lyr, expContractions = FALSE){
+  lyr <- lyr[!(lyr$lyrics == ""), ] #get rid of empty lyric rows
+  rownames(lyr) <- 1:nrow(lyr) # renumber index
+
+  for(row in 1:length(lyr[,1])){ # converts digits to words
+    lyr[row,1] <- replace_number(lyr[row,1])
+  }
+
+  if(expContractions == TRUE){
+    for(row in 1:length(lyr[,1])){ # expands contractions
+      lyr[row,1] <- replace_contraction(lyr[row,1])
+    }
+  }
+
+  for(row in 1:length(lyr[,1])){
+    lyr[row,1] <- str_replace_all(lyr[row,1], "[[:punct:]]", "")
+  }
+
+  lyr
+}
+
+
+#' sentimentProportion
+#'
+#' Calculates the detected sentiments in the lyrics
+#'
+#' @param x vector, or a column of a data frame, of lyrics
+#'
+#' @return NULL
+#' @export
+#'
+#' @examples
+#' sentimentProportion(cleaned_lyrics[,1])
+#'
+#' @export
+sentimentProportion <- function(x){
+  sentimentMatrix <- get_nrc_sentiment(x)
+  proportions <- colSums(sentimentMatrix) / length(x)
+  proportions
+
+}
+
+
+#' get_dtm
+#'
+#' Transforms the data frame of formatted and cleaned lyrics into a Document Term Matrix
+#'
+#' @param cleanedlyrics data frame of formatted and cleaned lyrics by formatLyrics() and cleanLyrics()
+#'
+#' @return Document Term Matrix of lyrics
+#' @export
+#'
+#' @examples
+#' my_dtm <- get_dtm(cleaned_lyrics)
+#'
+#' @export
+get_dtm <- function(cleanedlyrics){
+  #making a document term matrix from the dataframe of cleaned lyrics
+  dtm <- TermDocumentMatrix(cleanedlyrics[,1])
+  matrix <- as.matrix(dtm)
+  words <- sort(rowSums(matrix),decreasing=TRUE)
+  df <- data.frame(word = names(words),freq=words)
+}
+
+
+#' get_wordcloud
+#'
+#' Creates a wordcloud from a Document Term Matrix or data frame of formatted and cleaned lyrics
+#'
+#' @param cleanedlyrics data frame of formatted and cleaned lyrics by formatLyrics() and cleanLyrics() or a Document Term Matrix of lyrics
+#' @param dtm boolean that indicates if cleanedlyrics is a data frame or Document Term Matrix
+#'
+#' @return plot, word cloud of lyrics
+#' @export
+#'
+#' @examples
+#' get_wordcloud(cleaned_lyrics, dtm = F)
+#' get_wordcloud(my_dtm, dtm = T)
+#'
+#' @export
+get_wordcloud <- function(cleanedlyrics = NULL, dtm = FALSE) {
+  if (dtm == TRUE) {
+    wc <- wordcloud(words = cleanedlyrics$word, freq = cleanedlyrics$freq, min.freq = 1, max.words = 500,
+                    random.order = FALSE, rot.per = 0.35, colors = brewer.pal(8, "Dark2") )
+    return(invisible(wc))
+  }
+
+  #making a document term matrix from the dataframe of cleaned lyrics
+  dtm <- TermDocumentMatrix(cleanedlyrics[, 1])
+  matrix <- as.matrix(dtm)
+  words <- sort(rowSums(matrix), decreasing = TRUE)
+  df <- data.frame(word = names(words), freq = words)
+
+  #making the actual wordcloud using the wordcloud package
+  wordcloud(words = df$word, freq = df$freq, min.freq = 1, max.words = 500,
+            random.order = FALSE, rot.per = 0.35, colors = brewer.pal(8, "Dark2") )
+}
+
+
+#' top5words
+#'
+#' Creates a bar plot of the top 5 most used words in a Document Term Matrix or data frame of formatted and cleaned lyrics
+#'
+#' @param cleanedlyrics data frame of formatted and cleaned lyrics by formatLyrics() and cleanLyrics() or a Document Term Matrix of lyrics
+#' @param dtm boolean that indicates if cleanedlyrics is a data frame or Document Term Matrix
+#'
+#' @return bar plot of top five most used lyrics in data frame
+#' @export
+#'
+#' @examples
+#' top5words(cleaned_lyrics, dtm = F)
+#' top5words(my_dtm, dtm = T)
+#'
+#' @export
+top5words <- function(cleanedlyrics, dtm = FALSE) {
+  #dtm or cleaned lyrics as input?
+  if (dtm == TRUE) {
+    #if input is already a DTM, do this
+    bp <- barplot(cleanedlyrics$freq[1:5], names.arg = cleanedlyrics$word[1:5], col = "peachpuff4")
+    return(invisible(bp))
+  }
+
+  #otherwise, we need to make a dtm first
+  dtm <- TermDocumentMatrix(cleanedlyrics[, 1])
+  matrix <- as.matrix(dtm)
+  words <- sort(rowSums(matrix), decreasing = TRUE)
+  df <- data.frame(word = names(words), freq = words)
+
+  barplot(df$freq[1:5], names.arg = df$word[1:5], ylim = c(0,30),col = "peachpuff4")
+}
